@@ -1,0 +1,63 @@
+version: "3.8"
+
+services:
+  granite-verifier:
+    image: ${VLLM_IMAGE_TAG}
+    container_name: lean_llm_granite_verifier
+    environment:
+      - HF_HUB_OFFLINE=1
+      - VLLM_ATTENTION_BACKEND=FLASH_ATTN
+      - PYTHONHASHSEED=42
+      - TOKENIZERS_PARALLELISM=false
+    volumes:
+      - ${SOVEREIGN_MODEL_STORE}/granite-4.1-8b-instruct:/models/granite-4.1:ro
+      - ${BIFROST_AUDIT_SINK}/vllm:/var/log/vllm:rw
+    ports:
+      - "127.0.0.1:8100:8000"
+    ipc: host
+    shm_size: "16g"
+    command: >
+      --model /models/granite-4.1
+      --host 0.0.0.0
+      --port 8000
+      --max-model-len ${GRANITE_CONTEXT_LEN}
+      --max-num-seqs 8
+      --gpu-memory-utilization 0.92
+      --served-model-name sovereign-granite-4.1-verifier
+      --enforce-eager
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    restart: unless-stopped
+
+  lean4-kernel:
+    image: ${LEAN4_IMAGE_TAG}
+    container_name: lean_llm_lean4_kernel
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:exec,size=2g
+    volumes:
+      - ${VERIFICATION_PROJECT_ROOT}:/workspace/project:ro
+      - ${SOVEREIGN_CACHE_STORE}/lake:/home/lean/.lake:rw
+      - ${BIFROST_AUDIT_SINK}/lean4:/workspace/artifacts:rw
+    working_dir: /workspace/project/lean4
+    entrypoint: ["/bin/bash", "-c", "lake build && lake exe verify"]
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8G
+
+networks:
+  default:
+    name: lean_llm_verification_loop
+    driver: bridge
+    internal: true

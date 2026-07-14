@@ -1,0 +1,17 @@
+.lake/
+.elan/
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+artifacts/
+outputs/
+models/
+.venv/
+venv/
+node_modules/

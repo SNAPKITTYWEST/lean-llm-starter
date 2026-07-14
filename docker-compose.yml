@@ -1,0 +1,10 @@
+services:
+  granite-verifier:
+    extends:
+      file: ./infra/verification-loop/docker-compose.yml
+      service: granite-verifier
+
+  lean4-kernel:
+    extends:
+      file: ./infra/verification-loop/docker-compose.yml
+      service: lean4-kernel
