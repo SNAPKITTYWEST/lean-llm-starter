@@ -55,12 +55,26 @@ verify_loop(Intent, OperatorSig, Attempt, MaxRetries, FinalResult) :-
     ( ParseRes = success(_) ->
         execute_verification('granite_response.jsonl', KernelResult),
         ( KernelResult = result(0, _) ->
-            FinalResult = success(KernelResult)
+            FinalResult = success(KernelResult),
+            post_verified(Intent, OperatorSig)
         ; NextAttempt is Attempt + 1,
           verify_loop(Intent, OperatorSig, NextAttempt, MaxRetries, FinalResult)
         )
     ; NextAttempt is Attempt + 1,
       verify_loop(Intent, OperatorSig, NextAttempt, MaxRetries, FinalResult)
+    ).
+
+%% Fire mastodon_poster.py on successful verification.
+post_verified(Intent, OperatorSig) :-
+    atomic_list_concat([
+        'python3 ../infra/mastodon_poster.py',
+        ' --problem-id "', OperatorSig, '"',
+        ' --theorem "', Intent, '"'
+    ], Cmd),
+    ( shell(Cmd, 0) ->
+        format("mastodon_post:ok~n")
+    ;
+        format("mastodon_post:failed (non-fatal)~n")
     ).
 
 verify_loop(_, _, Attempt, MaxRetries, fail(max_retries_exceeded)) :-
